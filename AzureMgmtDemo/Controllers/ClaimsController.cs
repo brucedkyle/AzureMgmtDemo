@@ -1,10 +1,17 @@
-﻿using System;
+﻿// Example updated to support ASP.NET CORE
+// Originally from https://docs.microsoft.com/en-us/azure/active-directory/develop/guidedsetups/active-directory-aspnetwebapp was for ASP.NET
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web;
-using System.Web.Mvc;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
+using System.Security;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Authentication;
+using System.Security.Claims; 
 
-namespace AppModelv2_WebApp_OpenIDConnect_DotNet.Controllers
+namespace AzureMgmtDemo.Controllers
 {
     [Authorize]
     public class ClaimsController : Controller
@@ -15,7 +22,15 @@ namespace AppModelv2_WebApp_OpenIDConnect_DotNet.Controllers
         /// <returns></returns>
         public ActionResult Index()
         {
+
+            ViewBag.Name = User.Identity.Name;
+            ViewBag.UserName = "Todo";
+            ViewBag.Subject = "Todo";
+            ViewBag.TenantId = User.Claims.FirstOrDefault<Claim>(c => c.Type.Equals("http://schemas.microsoft.com/identity/claims/tenantid")).Value;
+            /*
+             * How to do this with ASP.NET
             var claimsPrincipalCurrent = System.Security.Claims.ClaimsPrincipal.Current;
+
             //You get the user’s first and last name below:
             ViewBag.Name = claimsPrincipalCurrent.FindFirst("name").Value;
 
@@ -27,8 +42,10 @@ namespace AppModelv2_WebApp_OpenIDConnect_DotNet.Controllers
 
             // TenantId is the unique Tenant Id - which represents an organization in Azure AD
             ViewBag.TenantId = claimsPrincipalCurrent.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid").Value;
+            */
 
             return View();
         }
+
     }
 }

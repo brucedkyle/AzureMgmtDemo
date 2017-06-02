@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureMgmtDemo", "AzureMgmtD
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureMgmtLib", "AzureMgmtLib\AzureMgmtLib.csproj", "{F8B14FF8-D5D6-4A72-B168-E4AC9BEE1EA2}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AzureMgmtCommon", "AzureMgmtCommon\AzureMgmtCommon.csproj", "{98D7DF40-8129-4F0D-803B-A192E6E57814}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{F8B14FF8-D5D6-4A72-B168-E4AC9BEE1EA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F8B14FF8-D5D6-4A72-B168-E4AC9BEE1EA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F8B14FF8-D5D6-4A72-B168-E4AC9BEE1EA2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{98D7DF40-8129-4F0D-803B-A192E6E57814}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{98D7DF40-8129-4F0D-803B-A192E6E57814}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{98D7DF40-8129-4F0D-803B-A192E6E57814}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{98D7DF40-8129-4F0D-803B-A192E6E57814}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

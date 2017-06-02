@@ -1,43 +1,41 @@
-﻿using System;
+﻿// Example based on https://github.com/Azure-Samples/active-directory-dotnet-webapp-openidconnect-aspnetcore-v2
+// MIT License
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web;
-using System.Web.Mvc;
-using Microsoft.Owin.Security;
-using Microsoft.Owin.Security.Cookies;
-using Microsoft.Owin.Security.OpenIdConnect;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Mvc;
 
-namespace AppModelv2_WebApp_OpenIDConnect_DotNet.Controllers
+namespace AzureMgmtDemo.Controllers
 {
+    // TO DO Secure app pages, See https://docs.microsoft.com/en-us/aspnet/core/security/authorization/secure-data
+    // [AllowAnonymous]
     public class HomeController : Controller
     {
-        // GET: Home
-        public ActionResult Index()
+        public IActionResult Index()
         {
             return View();
         }
-        /// <summary>
-        /// Send an OpenID Connect sign-in request.
-        /// Alternatively, you can just decorate the SignIn method with the [Authorize] attribute
-        /// </summary>
-        public void SignIn()
+
+        public IActionResult About()
         {
-            if (!Request.IsAuthenticated)
-            {
-                HttpContext.GetOwinContext().Authentication.Challenge(
-                    new AuthenticationProperties { RedirectUri = "/" },
-                    OpenIdConnectAuthenticationDefaults.AuthenticationType);
-            }
+            ViewData["Message"] = "Your application description page.";
+
+            return View();
         }
 
-        /// <summary>
-        /// Send an OpenID Connect sign-out request.
-        /// </summary>
-        public void SignOut()
+        public IActionResult Contact()
         {
-            HttpContext.GetOwinContext().Authentication.SignOut(
-                    OpenIdConnectAuthenticationDefaults.AuthenticationType,
-                    CookieAuthenticationDefaults.AuthenticationType);
+            ViewData["Message"] = "Your contact page.";
+
+            return View();
+        }
+
+        public IActionResult Error(string message)
+        {
+            ViewBag.Message = message;
+            return View("~/Views/Shared/Error.cshtml");
         }
     }
 }

@@ -1,74 +1,121 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Owin;
-using Owin;
-using Microsoft.IdentityModel.Protocols;
-using Microsoft.Owin.Security;
-using Microsoft.Owin.Security.Cookies;
-using Microsoft.Owin.Security.OpenIdConnect;
-using Microsoft.Owin.Security.Notifications;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Microsoft.IdentityModel.Tokens;
+using System.Globalization;
 
-[assembly: OwinStartup(typeof(AppModelv2_WebApp_OpenIDConnect_DotNet.Startup))]
-
-namespace AppModelv2_WebApp_OpenIDConnect_DotNet
+namespace AzureMgmtDemo
 {
     public class Startup
     {
-        // The Client ID is used by the application to uniquely identify itself to Azure AD.
-        string clientId = System.Configuration.ConfigurationManager.AppSettings["ClientId"];
-
-        // RedirectUri is the URL where the user will be redirected to after they sign in.
-        string redirectUri = System.Configuration.ConfigurationManager.AppSettings["RedirectUri"];
-
-        // Tenant is the tenant ID (e.g. contoso.onmicrosoft.com, or 'common' for multi-tenant)
-        static string tenant = System.Configuration.ConfigurationManager.AppSettings["Tenant"];
-
-        // Authority is the URL for authority, composed by Azure Active Directory v2 endpoint and the tenant name (e.g. https://login.microsoftonline.com/contoso.onmicrosoft.com/v2.0)
-        string authority = String.Format(System.Globalization.CultureInfo.InvariantCulture, System.Configuration.ConfigurationManager.AppSettings["Authority"], tenant);
-
-        /// <summary>
-        /// Configure OWIN to use OpenIdConnect 
-        /// </summary>
-        /// <param name="app"></param>
-        public void Configuration(IAppBuilder app)
+        public Startup(IHostingEnvironment env)
         {
-            app.SetDefaultSignInAsAuthenticationType(CookieAuthenticationDefaults.AuthenticationType);
-
-            app.UseCookieAuthentication(new CookieAuthenticationOptions());
-            app.UseOpenIdConnectAuthentication(
-            new OpenIdConnectAuthenticationOptions
-            {
-                // Sets the ClientId, authority, RedirectUri as obtained from web.config
-                ClientId = clientId,
-                Authority = authority,
-                RedirectUri = redirectUri,
-                // PostLogoutRedirectUri is the page that users will be redirected to after sign-out. In this case, it is using the home page
-                PostLogoutRedirectUri = redirectUri,
-                Scope = OpenIdConnectScopes.OpenIdProfile,
-                // ResponseType is set to request the id_token - which contains basic information about the signed-in user
-                ResponseType = OpenIdConnectResponseTypes.IdToken,
-                // ValidateIssuer set to false to allow personal and work accounts from any organization to sign in to your application
-                // To only allow users from a single organizations, set ValidateIssuer to true and 'tenant' setting in web.config to the tenant name
-                // To allow users from only a list of specific organizations, set ValidateIssuer to true and use ValidIssuers parameter 
-                TokenValidationParameters = new System.IdentityModel.Tokens.TokenValidationParameters() { ValidateIssuer = false },
-                // OpenIdConnectAuthenticationNotifications configures OWIN to send notification of failed authentications to OnAuthenticationFailed method
-                Notifications = new OpenIdConnectAuthenticationNotifications
-                {
-                    AuthenticationFailed = OnAuthenticationFailed
-                }
-            }
-        );
+            // Set up configuration sources.
+            Configuration = new ConfigurationBuilder()
+                .SetBasePath(env.ContentRootPath)
+                .AddJsonFile("config.json")
+                .AddJsonFile("appsettings.json")
+                .Build();
         }
 
-        /// <summary>
-        /// Handle failed authentication requests by redirecting the user to the home page with an error in the query string
-        /// </summary>
-        /// <param name="context"></param>
-        /// <returns></returns>
-        private Task OnAuthenticationFailed(AuthenticationFailedNotification<OpenIdConnectMessage, OpenIdConnectAuthenticationOptions> context)
+        public IConfigurationRoot Configuration { get; set; }
+
+        // This method gets called by the runtime. Use this method to add services to the container.
+        public void ConfigureServices(IServiceCollection services)
+        {
+            // Add MVC services to the services container.
+            services.AddMvc();
+
+            // Add Authentication services.
+            services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+        }
+
+        // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+        {
+            // Add the console logger.
+            loggerFactory.AddConsole(Configuration.GetSection("Logging"));
+
+            // Configure error handling middleware.
+            app.UseExceptionHandler("/Home/Error");
+
+            // Add static files to the request pipeline.
+            app.UseStaticFiles();
+
+            // Configure the OWIN pipeline to use cookie auth.
+            app.UseCookieAuthentication(new CookieAuthenticationOptions());
+
+            // Configure the OWIN pipeline to use OpenID Connect auth.
+            app.UseOpenIdConnectAuthentication(new OpenIdConnectOptions
+            {
+                ClientId = Configuration["AzureAD:ClientId"],
+                Authority = string.Format(CultureInfo.InvariantCulture, Configuration["AzureAd:AadInstance"], "common", "/v2.0"),
+                ResponseType = OpenIdConnectResponseType.IdToken,
+                PostLogoutRedirectUri = Configuration["AzureAd:PostLogoutRedirectUri"],
+                Events = new OpenIdConnectEvents
+                {
+                    OnRemoteFailure = RemoteFailure,
+                    OnTokenValidated = TokenValidated
+                },
+                TokenValidationParameters = new TokenValidationParameters
+                {
+                    // Instead of using the default validation (validating against
+                    // a single issuer value, as we do in line of business apps), 
+                    // we inject our own multitenant validation logic
+                    ValidateIssuer = false,
+
+                    NameClaimType = "name"
+                }
+            });
+
+            // Configure MVC routes
+            app.UseMvc(routes =>
+            {
+                routes.MapRoute(
+                    name: "default",
+                    template: "{controller=Home}/{action=Index}/{id?}");
+            });
+        }
+
+        private Task TokenValidated(TokenValidatedContext context)
+        {
+            /* ---------------------
+            // Replace this with your logic to validate the issuer/tenant
+               ---------------------       
+            // Retriever caller data from the incoming principal
+            string issuer = context.SecurityToken.Issuer;
+            string subject = context.SecurityToken.Subject;
+            string tenantID = context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid").Value;
+
+            // Build a dictionary of approved tenants
+            IEnumerable<string> approvedTenantIds = new List<string>
+            {
+                "<Your tenantID>",
+                "9188040d-6c67-4c5b-b112-36a304b66dad" // MSA Tenant
+            };
+
+            if (!approvedTenantIds.Contains(tenantID))
+                throw new SecurityTokenValidationException();
+              --------------------- */
+
+            return Task.FromResult(0);
+        }
+
+        // Handle sign-in errors differently than generic errors.
+        private Task RemoteFailure(FailureContext context)
         {
             context.HandleResponse();
-            context.Response.Redirect("/?errormessage=" + context.Exception.Message);
+            context.Response.Redirect("/Home/Error?message=" + context.Failure.Message);
             return Task.FromResult(0);
         }
     }
